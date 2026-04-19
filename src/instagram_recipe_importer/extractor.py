@@ -25,6 +25,27 @@ class RecipeExtractor:
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_whisper_device(self) -> Tuple[str, str]:
+        """Return the fastest available faster-whisper device settings."""
+        try:
+            import ctranslate2
+
+            if ctranslate2.get_cuda_device_count() > 0:
+                return "cuda", "float16"
+        except Exception:
+            pass
+
+        return "cpu", "int8"
+
+    def _torch_cuda_available(self) -> bool:
+        """Return whether PyTorch can use CUDA in this environment."""
+        try:
+            import torch
+
+            return torch.cuda.is_available()
+        except Exception:
+            return False
     
     def _detect_source(self, url: str) -> str:
         """Auto-detect the source platform from URL.
@@ -189,8 +210,17 @@ class RecipeExtractor:
         """
         try:
             from faster_whisper import WhisperModel
-            
-            model = WhisperModel("small", device="cpu", compute_type="int8")
+
+            device, compute_type = self._get_whisper_device()
+            try:
+                model = WhisperModel(
+                    "small", device=device, compute_type=compute_type
+                )
+            except Exception:
+                if device != "cuda":
+                    raise
+                model = WhisperModel("small", device="cpu", compute_type="int8")
+
             segments, _ = model.transcribe(
                 video_path,
                 beam_size=5,
@@ -250,9 +280,9 @@ class RecipeExtractor:
                 self._write_to_file("ocr.txt", error_msg)
                 return False
             
-            # Try with GPU first, fall back to CPU
+            # EasyOCR uses PyTorch for GPU acceleration.
             try:
-                reader = Reader(['en', 'de'], gpu=True)
+                reader = Reader(['en', 'de'], gpu=self._torch_cuda_available())
             except Exception:
                 reader = Reader(['en', 'de'], gpu=False)
             

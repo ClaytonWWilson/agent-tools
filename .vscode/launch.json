@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug CLI (insta-recipe)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "instagram_recipe_importer.cli",
+      "args": ["https://www.instagram.com/p/ABC123/", "-v"],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {}
+    },
+    {
+      "name": "Debug CLI (caption-only)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "instagram_recipe_importer.cli",
+      "args": ["https://www.instagram.com/p/ABC123/", "--caption-only"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Debug Extractor Module",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "instagram_recipe_importer.extractor",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Python: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}

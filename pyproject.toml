@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "instagram-recipe-importer"
+version = "0.2.0"
+description = "Extract recipe information from Instagram and YouTube posts (captions, audio transcription, OCR)"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    {name = "Clayton", email = "clayton@example.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "yt-dlp>=2024.1.0",
+    "faster-whisper>=1.0.0",
+    "easyocr>=1.7.1",
+    "opencv-python-headless>=4.8.0",
+    "click>=8.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+insta-recipe = "instagram_recipe_importer.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

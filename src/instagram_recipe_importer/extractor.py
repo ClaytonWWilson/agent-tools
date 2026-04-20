@@ -175,7 +175,7 @@ class RecipeExtractor:
             # Detect source platform for format selection
             source = self._detect_source(url)
             
-            output_template = str(self.output_dir / "video_%(title)s.%(ext)s")
+            output_path = self.output_dir / "video.mp4"
             
             # YouTube often needs more flexible format selection
             if source == "youtube":
@@ -186,7 +186,8 @@ class RecipeExtractor:
             cmd = [
                 "yt-dlp",
                 "-f", format_str,
-                "--output", output_template,
+                "--output", str(output_path),
+                "--merge-output-format", "mp4",
                 "--no-warnings",
                 url
             ]
@@ -200,14 +201,12 @@ class RecipeExtractor:
                 )
                 return None
             
-            # Find downloaded video file
-            pattern = str(self.output_dir / "video_*.mp4")
-            files = glob.glob(pattern)
-            
-            if not files:
-                # Try without extension filter
-                pattern = str(self.output_dir / "video_*")
-                files = glob.glob(pattern)
+            if output_path.exists():
+                self._record_created_file(output_path)
+                return str(output_path)
+
+            # yt-dlp can still append an extension in some edge cases.
+            files = glob.glob(str(self.output_dir / "video.*"))
             
             if not files:
                 self._record_error(

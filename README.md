@@ -87,7 +87,7 @@ Extracting caption/description...
 Success: Caption saved to /tmp/insta_recipe_20240115_143022/captions.txt.
 
 Downloading video...
-Success: Video downloaded to /tmp/insta_recipe_20240115_143022/video_ABC123.mp4.
+Success: Video downloaded to /tmp/insta_recipe_20240115_143022/video.mp4.
 
 Transcribing audio...
 Success: Audio transcription saved to /tmp/insta_recipe_20240115_143022/transcription.txt.
@@ -110,7 +110,7 @@ Thumbnail downloaded: yes
 
 Processed files:
 - /tmp/insta_recipe_20240115_143022/captions.txt
-- /tmp/insta_recipe_20240115_143022/video_ABC123.mp4
+- /tmp/insta_recipe_20240115_143022/video.mp4
 - /tmp/insta_recipe_20240115_143022/transcription.txt
 - /tmp/insta_recipe_20240115_143022/ocr.txt
 - /tmp/insta_recipe_20240115_143022/thumbnail.jpg

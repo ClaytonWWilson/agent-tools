@@ -4,12 +4,9 @@ Instagram Recipe Extractor
 Core extraction logic for captions, audio transcription, and OCR.
 """
 
-import os
-import sys
 import glob
 import json
 import subprocess
-from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -25,6 +22,8 @@ class RecipeExtractor:
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.last_error: Optional[str] = None
+        self.created_files: list[str] = []
 
     def _get_whisper_device(self) -> Tuple[str, str]:
         """Return the fastest available faster-whisper device settings."""
@@ -76,6 +75,7 @@ class RecipeExtractor:
         Returns:
             True if successful, False otherwise
         """
+        self._clear_error()
         try:
             # Detect source platform
             source = self._detect_source(url)
@@ -89,7 +89,13 @@ class RecipeExtractor:
             )
             
             if result.returncode != 0:
-                error_msg = f"yt-dlp failed: {result.stderr.strip()}"
+                error_detail = (
+                    result.stderr.strip()
+                    or result.stdout.strip()
+                    or "yt-dlp failed while loading post metadata"
+                )
+                error_msg = f"yt-dlp failed: {error_detail}"
+                self._record_error(error_msg)
                 self._write_to_file("captions.txt", error_msg)
                 return False
             
@@ -125,6 +131,7 @@ class RecipeExtractor:
                 
                 if not caption:
                     error_msg = "No caption found in post metadata"
+                    self._record_error(error_msg)
                     self._write_to_file("captions.txt", error_msg)
                     return False
                 
@@ -140,14 +147,17 @@ class RecipeExtractor:
             
         except json.JSONDecodeError as e:
             error_msg = f"Failed to parse yt-dlp output: {e}"
+            self._record_error(error_msg)
             self._write_to_file("captions.txt", error_msg)
             return False
         except ValueError as e:
             error_msg = str(e)
+            self._record_error(error_msg)
             self._write_to_file("captions.txt", error_msg)
             return False
         except Exception as e:
             error_msg = f"Unexpected error extracting caption: {e}"
+            self._record_error(error_msg)
             self._write_to_file("captions.txt", error_msg)
             return False
     
@@ -160,6 +170,7 @@ class RecipeExtractor:
         Returns:
             Path to downloaded video file, or None if failed
         """
+        self._clear_error()
         try:
             # Detect source platform for format selection
             source = self._detect_source(url)
@@ -182,6 +193,11 @@ class RecipeExtractor:
             result = subprocess.run(cmd, capture_output=True, text=True, check=False)
             
             if result.returncode != 0:
+                self._record_error(
+                    result.stderr.strip()
+                    or result.stdout.strip()
+                    or "yt-dlp failed to download video"
+                )
                 return None
             
             # Find downloaded video file
@@ -193,10 +209,17 @@ class RecipeExtractor:
                 pattern = str(self.output_dir / "video_*")
                 files = glob.glob(pattern)
             
-            return files[0] if files else None
+            if not files:
+                self._record_error(
+                    "yt-dlp completed but no downloaded video file was found"
+                )
+                return None
+
+            self._record_created_file(files[0])
+            return files[0]
             
         except Exception as e:
-            print(f"Error downloading video: {e}", file=sys.stderr)
+            self._record_error(f"Error downloading video: {e}")
             return None
     
     def transcribe_audio(self, video_path: str) -> bool:
@@ -208,6 +231,7 @@ class RecipeExtractor:
         Returns:
             True if successful, False otherwise
         """
+        self._clear_error()
         try:
             from faster_whisper import WhisperModel
 
@@ -234,6 +258,7 @@ class RecipeExtractor:
             
             if not transcription_lines:
                 error_msg = "No audio detected or no speech transcribed"
+                self._record_error(error_msg)
                 self._write_to_file("transcription.txt", error_msg)
                 return False
             
@@ -242,11 +267,16 @@ class RecipeExtractor:
             return True
             
         except ImportError:
-            error_msg = "faster-whisper not installed. Install with: pip install faster-whisper"
+            error_msg = (
+                "faster-whisper not installed. "
+                "Install with: pip install faster-whisper"
+            )
+            self._record_error(error_msg)
             self._write_to_file("transcription.txt", error_msg)
             return False
         except Exception as e:
             error_msg = f"Transcription failed: {e}"
+            self._record_error(error_msg)
             self._write_to_file("transcription.txt", error_msg)
             return False
     
@@ -259,6 +289,7 @@ class RecipeExtractor:
         Returns:
             True if successful, False otherwise
         """
+        self._clear_error()
         try:
             import cv2
             from easyocr import Reader
@@ -277,6 +308,7 @@ class RecipeExtractor:
             
             if not frames:
                 error_msg = "No frames could be read from video"
+                self._record_error(error_msg)
                 self._write_to_file("ocr.txt", error_msg)
                 return False
             
@@ -296,6 +328,7 @@ class RecipeExtractor:
             
             if not all_text:
                 error_msg = "No text found via OCR"
+                self._record_error(error_msg)
                 self._write_to_file("ocr.txt", error_msg)
                 return False
             
@@ -305,11 +338,16 @@ class RecipeExtractor:
             
         except ImportError as e:
             missing = "opencv-python-headless" if "cv2" in str(e) else "easyocr"
-            error_msg = f"{missing} not installed. Install with: pip install {missing} opencv-python-headless"
+            error_msg = (
+                f"{missing} not installed. "
+                f"Install with: pip install {missing} opencv-python-headless"
+            )
+            self._record_error(error_msg)
             self._write_to_file("ocr.txt", error_msg)
             return False
         except Exception as e:
             error_msg = f"OCR failed: {e}"
+            self._record_error(error_msg)
             self._write_to_file("ocr.txt", error_msg)
             return False
     
@@ -322,6 +360,7 @@ class RecipeExtractor:
         Returns:
             Path to downloaded image, or None if failed
         """
+        self._clear_error()
         try:
             # Detect source platform
             source = self._detect_source(url)
@@ -330,6 +369,11 @@ class RecipeExtractor:
             result = subprocess.run(cmd, capture_output=True, text=True, check=False)
             
             if result.returncode != 0:
+                self._record_error(
+                    result.stderr.strip()
+                    or result.stdout.strip()
+                    or "yt-dlp failed while loading thumbnail metadata"
+                )
                 return None
             
             data = json.loads(result.stdout)
@@ -342,7 +386,9 @@ class RecipeExtractor:
                 video_id = data.get("id")
                 if video_id:
                     # maxresdefault = 1280x720, sddefault = 640x480
-                    image_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+                    image_url = (
+                        f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+                    )
             else:  # instagram
                 entry = data.get("entries", [{}])[0] if "entries" in data else data
                 
@@ -360,18 +406,35 @@ class RecipeExtractor:
                     image_url = entry["video_thumbnail"]
             
             if not image_url:
+                self._record_error("No thumbnail URL found in post metadata")
                 return None
             
             # Download image
             import urllib.request
             output_path = self.output_dir / "thumbnail.jpg"
             urllib.request.urlretrieve(image_url, str(output_path))
+            self._record_created_file(output_path)
             
             return str(output_path)
             
         except Exception as e:
-            print(f"Error downloading thumbnail: {e}", file=sys.stderr)
+            self._record_error(f"Error downloading thumbnail: {e}")
             return None
+
+    def get_output_path(self, filename: str) -> str:
+        """Return the absolute output path for a generated file."""
+        return str(self.output_dir / filename)
+
+    def _clear_error(self) -> None:
+        self.last_error = None
+
+    def _record_error(self, message: str) -> None:
+        self.last_error = message
+
+    def _record_created_file(self, filepath: str | Path) -> None:
+        path = str(filepath)
+        if path not in self.created_files:
+            self.created_files.append(path)
     
     def _write_to_file(self, filename: str, content: str) -> None:
         """Write content to a file in the output directory.
@@ -383,3 +446,4 @@ class RecipeExtractor:
         filepath = self.output_dir / filename
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
+        self._record_created_file(filepath)

@@ -82,31 +82,38 @@ All files are saved to `/tmp/insta_recipe_<timestamp>/` by default:
 
 ```bash
 $ insta-recipe "https://www.instagram.com/p/ABC123/" -v
-📁 Output directory: /tmp/insta_recipe_20240115_143022
-📝 Extracting caption...
-✅ Caption extracted
+Output directory: /tmp/insta_recipe_20240115_143022
+Extracting caption/description...
+Success: Caption saved to /tmp/insta_recipe_20240115_143022/captions.txt.
 
-🎬 Downloading video...
-✅ Video downloaded: /tmp/insta_recipe_20240115_143022/video_ABC123.mp4
+Downloading video...
+Success: Video downloaded to /tmp/insta_recipe_20240115_143022/video_ABC123.mp4.
 
-🎤 Transcribing audio...
-✅ Audio transcribed
+Transcribing audio...
+Success: Audio transcription saved to /tmp/insta_recipe_20240115_143022/transcription.txt.
 
-👁️ Running OCR on video frames...
-✅ OCR completed
+Running OCR on video frames...
+Success: OCR results saved to /tmp/insta_recipe_20240115_143022/ocr.txt.
 
-🖼️ Downloading thumbnail...
-✅ Thumbnail downloaded: /tmp/insta_recipe_20240115_143022/thumbnail.jpg
+Downloading thumbnail...
+Success: Thumbnail downloaded to /tmp/insta_recipe_20240115_143022/thumbnail.jpg.
 
 ==================================================
-📊 Extraction Summary
+Extraction Summary
 ==================================================
 Output directory: /tmp/insta_recipe_20240115_143022
-Caption extracted: ✅
-Video downloaded: ✅
-Audio transcribed: ✅
-OCR completed: ✅
-Thumbnail downloaded: ✅
+Caption extracted: yes
+Video downloaded: yes
+Audio transcribed: yes
+OCR completed: yes
+Thumbnail downloaded: yes
+
+Processed files:
+- /tmp/insta_recipe_20240115_143022/captions.txt
+- /tmp/insta_recipe_20240115_143022/video_ABC123.mp4
+- /tmp/insta_recipe_20240115_143022/transcription.txt
+- /tmp/insta_recipe_20240115_143022/ocr.txt
+- /tmp/insta_recipe_20240115_143022/thumbnail.jpg
 ==================================================
 ```
 
@@ -132,7 +139,10 @@ brew install sndfile
 
 ## Error Handling
 
-If any extraction method fails, an error message is written to the corresponding output file instead of leaving it empty. This makes it easy to detect failures programmatically.
+If any extraction method fails, the error is printed to the terminal. When a text
+output file can be created for that step, the same error message is written to
+the corresponding output file instead of leaving it empty. This makes it easy to
+detect failures programmatically.
 
 ### Example Error Output
 

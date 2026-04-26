@@ -2,6 +2,7 @@ HOW TO USE
 
 Step 1:
 Clone this repo locally
+git clone --recurse-submodules https://github.com/you/main-project.git
 
 Step 2:
 install tools

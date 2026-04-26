@@ -1,6 +1,7 @@
 # Social Content Extractor
 
 A CLI tool that extracts content information from **Instagram** and **YouTube** posts, including:
+
 - **Descriptions** - Text content from post descriptions or video descriptions
 - **Audio Transcription** - Whisper-based transcription of spoken audio
 - **OCR** - Text extraction from video frames
@@ -45,6 +46,7 @@ social-content-extract "https://youtu.be/ABC123"
 The tool **auto-detects** the platform from the URL.
 
 This will:
+
 1. Extract the description → `/tmp/social_content_<timestamp>/description.txt`
 2. Download the video (if present)
 3. Transcribe audio → `/tmp/social_content_<timestamp>/transcription.txt`
@@ -71,12 +73,12 @@ social-content-extract "URL" -v
 
 All files are saved to `/tmp/social_content_<timestamp>/` by default:
 
-| File | Description |
-|------|-------------|
-| `description.txt` | Post description text |
-| `transcription.txt` | Whisper transcription of audio |
-| `ocr.txt` | Text extracted from video frames |
-| `thumbnail.jpg` | Cover image/thumbnail |
+| File                | Description                      |
+| ------------------- | -------------------------------- |
+| `description.txt`   | Post description text            |
+| `transcription.txt` | Whisper transcription of audio   |
+| `ocr.txt`           | Text extracted from video frames |
+| `thumbnail.jpg`     | Cover image/thumbnail            |
 
 ### Example Output
 
@@ -119,7 +121,7 @@ Processed files:
 
 ## Dependencies
 
-- **yt-dlp** - Video and description extraction from supported platforms
+- **yt-dlp** - Video and description extraction from supported platforms `uv tool install yt-dlp`
 - **faster-whisper** - Audio transcription
 - **easyocr** - OCR on video frames
 - **opencv-python-headless** - Video frame processing
@@ -150,7 +152,7 @@ detect failures programmatically.
 # description.txt (on failure)
 No description found in post metadata
 
-# transcription.txt (on failure)  
+# transcription.txt (on failure)
 No audio detected or no speech transcribed
 
 # ocr.txt (on failure)

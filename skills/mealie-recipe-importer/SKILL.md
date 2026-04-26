@@ -94,9 +94,6 @@ mealie_create_recipe(name="...", ingredients=[...], instructions=[...])
 # Update metadata
 mealie_patch_recipe(slug="...", description="...", recipe_yield="...", total_time="...")
 
-# Set image from URL (if direct image link)
-mealie_set_recipe_image_from_url(slug="...", image_url="...")
-
 # Upload image file
 mealie_upload_recipe_image_file(slug="...", image_path="...")
 ```

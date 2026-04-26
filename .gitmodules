@@ -1,0 +1,3 @@
+[submodule "mcp/mealie-mcp-server"]
+	path = mcp/mealie-mcp-server
+	url = https://github.com/ClaytonWWilson/mealie-mcp-server.git

@@ -43,6 +43,8 @@ insta-recipe = "instagram_recipe_importer.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
 
 [[tool.uv.index]]
 name = "pytorch-cu126"

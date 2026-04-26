@@ -6,6 +6,8 @@ Core extraction logic for captions, audio transcription, and OCR.
 
 import glob
 import json
+import os
+import tempfile
 import subprocess
 from pathlib import Path
 from typing import Optional, Tuple
@@ -45,7 +47,39 @@ class RecipeExtractor:
             return torch.cuda.is_available()
         except Exception:
             return False
-    
+
+    def _get_app_cache_dir(self) -> Path:
+        """Return the cache directory owned by this tool."""
+        if env_cache_dir := os.environ.get("INSTAGRAM_RECIPE_IMPORTER_CACHE_DIR"):
+            cache_dir = Path(env_cache_dir).expanduser()
+        elif xdg_cache_home := os.environ.get("XDG_CACHE_HOME"):
+            cache_dir = (
+                Path(xdg_cache_home).expanduser() / "instagram-recipe-importer"
+            )
+        else:
+            cache_dir = Path.home() / ".cache" / "instagram-recipe-importer"
+
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            raise RuntimeError(
+                f"Unable to create cache directory at {cache_dir}: {e}"
+            ) from e
+
+        return cache_dir
+
+    def _get_whisper_download_root(self) -> str:
+        """Return a writable model cache for faster-whisper downloads."""
+        download_root = self._get_app_cache_dir() / "faster-whisper"
+        try:
+            download_root.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            raise RuntimeError(
+                f"Unable to create Whisper cache at {download_root}: {e}"
+            ) from e
+
+        return str(download_root)
+
     def _detect_source(self, url: str) -> str:
         """Auto-detect the source platform from URL.
         
@@ -172,16 +206,16 @@ class RecipeExtractor:
         """
         self._clear_error()
         try:
-            # Detect source platform for format selection
-            source = self._detect_source(url)
-            
+            self._detect_source(url)
             output_path = self.output_dir / "video.mp4"
             
-            # YouTube often needs more flexible format selection
-            if source == "youtube":
-                format_str = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
-            else:
-                format_str = "best[ext=mp4]/best"
+            # Prefer H.264/AVC so OpenCV can decode frames reliably for OCR.
+            format_str = (
+                "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/"
+                "best[ext=mp4][vcodec^=avc1]/"
+                "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
+                "best[ext=mp4]/best"
+            )
             
             cmd = [
                 "yt-dlp",
@@ -235,14 +269,23 @@ class RecipeExtractor:
             from faster_whisper import WhisperModel
 
             device, compute_type = self._get_whisper_device()
+            download_root = self._get_whisper_download_root()
             try:
                 model = WhisperModel(
-                    "small", device=device, compute_type=compute_type
+                    "small",
+                    device=device,
+                    compute_type=compute_type,
+                    download_root=download_root,
                 )
             except Exception:
                 if device != "cuda":
                     raise
-                model = WhisperModel("small", device="cpu", compute_type="int8")
+                model = WhisperModel(
+                    "small",
+                    device="cpu",
+                    compute_type="int8",
+                    download_root=download_root,
+                )
 
             segments, _ = model.transcribe(
                 video_path,
@@ -289,11 +332,15 @@ class RecipeExtractor:
             True if successful, False otherwise
         """
         self._clear_error()
+        cleanup_video_path: Optional[str] = None
         try:
             import cv2
             from easyocr import Reader
-            
-            cap = cv2.VideoCapture(video_path)
+
+            ocr_video_path, cleanup_video_path = self._prepare_video_for_ocr(
+                video_path
+            )
+            cap = cv2.VideoCapture(ocr_video_path)
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             sample_rate = max(1, int(frame_count / 30))
             frames = []
@@ -349,6 +396,100 @@ class RecipeExtractor:
             self._record_error(error_msg)
             self._write_to_file("ocr.txt", error_msg)
             return False
+        finally:
+            if cleanup_video_path:
+                Path(cleanup_video_path).unlink(missing_ok=True)
+
+    def _prepare_video_for_ocr(self, video_path: str) -> Tuple[str, Optional[str]]:
+        """Return a video path OpenCV can read, plus an optional cleanup path."""
+        codec = self._get_video_codec(video_path)
+        if codec.lower() == "av1":
+            transcoded_path = self._transcode_video_for_ocr(video_path)
+            return transcoded_path, transcoded_path
+
+        return video_path, None
+
+    def _get_video_codec(self, video_path: str) -> str:
+        """Read the first video stream codec name with ffprobe."""
+        cmd = [
+            "ffprobe",
+            "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            video_path,
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=False
+            )
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                "ffprobe is required to inspect video codec before OCR"
+            ) from e
+
+        if result.returncode != 0:
+            error_detail = (
+                result.stderr.strip()
+                or result.stdout.strip()
+                or "unknown ffprobe error"
+            )
+            raise RuntimeError(f"ffprobe failed before OCR: {error_detail}")
+
+        output = result.stdout.strip()
+        codec = output.splitlines()[0] if output else ""
+        if not codec:
+            raise RuntimeError("ffprobe did not find a video stream for OCR")
+
+        return codec
+
+    def _transcode_video_for_ocr(self, video_path: str) -> str:
+        """Transcode AV1 video to an H.264 copy for OpenCV frame reads."""
+        with tempfile.NamedTemporaryFile(
+            dir=self.output_dir,
+            prefix="ocr_",
+            suffix=".mp4",
+            delete=False,
+        ) as temp_file:
+            output_path = temp_file.name
+
+        cmd = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-y",
+            "-i", video_path,
+            "-map", "0:v:0",
+            "-an",
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-preset", "veryfast",
+            output_path,
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=False
+            )
+        except FileNotFoundError as e:
+            Path(output_path).unlink(missing_ok=True)
+            raise RuntimeError(
+                "ffmpeg is required to transcode AV1 video for OCR"
+            ) from e
+
+        if result.returncode != 0:
+            Path(output_path).unlink(missing_ok=True)
+            error_detail = (
+                result.stderr.strip()
+                or result.stdout.strip()
+                or "unknown ffmpeg error"
+            )
+            raise RuntimeError(
+                f"ffmpeg failed while transcoding AV1 video for OCR: {error_detail}"
+            )
+
+        return output_path
     
     def download_thumbnail(self, url: str) -> Optional[str]:
         """Download thumbnail/image from post.

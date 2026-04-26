@@ -1,9 +1,9 @@
-# Instagram Recipe Importer
+# Social Content Extractor
 
-A CLI tool that extracts recipe information from **Instagram** and **YouTube** posts, including:
-- **Captions/Descriptions** - Text content from post descriptions or video descriptions
-- **Audio Transcription** - Whisper-based transcription of narrated recipes
-- **OCR** - Text extraction from video frames (for visual/text-overlay recipes)
+A CLI tool that extracts content information from **Instagram** and **YouTube** posts, including:
+- **Descriptions** - Text content from post descriptions or video descriptions
+- **Audio Transcription** - Whisper-based transcription of spoken audio
+- **OCR** - Text extraction from video frames
 - **Thumbnail Download** - Cover image extraction
 
 ## Installation
@@ -15,7 +15,7 @@ A CLI tool that extracts recipe information from **Instagram** and **YouTube** p
 uv tool install .
 
 # Or install directly from a git repository
-uv tool install git+https://github.com/yourusername/instagram-recipe-importer.git
+uv tool install git+https://github.com/yourusername/social-content-extractor.git
 ```
 
 ### Using pip
@@ -29,51 +29,51 @@ pip install .
 ### Basic Usage - Instagram
 
 ```bash
-insta-recipe "https://www.instagram.com/p/ABC123/"
+social-content-extract "https://www.instagram.com/p/ABC123/"
 ```
 
 ### Basic Usage - YouTube
 
 ```bash
 # Full URL
-insta-recipe "https://www.youtube.com/watch?v=ABC123"
+social-content-extract "https://www.youtube.com/watch?v=ABC123"
 
 # Shortened youtu.be URL
-insta-recipe "https://youtu.be/ABC123"
+social-content-extract "https://youtu.be/ABC123"
 ```
 
 The tool **auto-detects** the platform from the URL.
 
 This will:
-1. Extract the caption → `/tmp/insta_recipe_<timestamp>/captions.txt`
+1. Extract the description → `/tmp/social_content_<timestamp>/description.txt`
 2. Download the video (if present)
-3. Transcribe audio → `/tmp/insta_recipe_<timestamp>/transcription.txt`
-4. Run OCR on frames → `/tmp/insta_recipe_<timestamp>/ocr.txt`
-5. Download thumbnail → `/tmp/insta_recipe_<timestamp>/thumbnail.jpg`
+3. Transcribe audio → `/tmp/social_content_<timestamp>/transcription.txt`
+4. Run OCR on frames → `/tmp/social_content_<timestamp>/ocr.txt`
+5. Download thumbnail → `/tmp/social_content_<timestamp>/thumbnail.jpg`
 
 ### Options
 
 ```bash
-# Only extract caption (skip video processing)
-insta-recipe "URL" --caption-only
+# Only extract description text (skip video processing)
+social-content-extract "URL" --description-only
 
 # Use custom output directory
-insta-recipe "URL" --output-dir /my/custom/path
+social-content-extract "URL" --output-dir /my/custom/path
 
 # Skip thumbnail download
-insta-recipe "URL" --no-thumbnail
+social-content-extract "URL" --no-thumbnail
 
 # Verbose output
-insta-recipe "URL" -v
+social-content-extract "URL" -v
 ```
 
 ### Output Files
 
-All files are saved to `/tmp/insta_recipe_<timestamp>/` by default:
+All files are saved to `/tmp/social_content_<timestamp>/` by default:
 
 | File | Description |
 |------|-------------|
-| `captions.txt` | Post caption/description text |
+| `description.txt` | Post description text |
 | `transcription.txt` | Whisper transcription of audio |
 | `ocr.txt` | Text extracted from video frames |
 | `thumbnail.jpg` | Cover image/thumbnail |
@@ -81,45 +81,45 @@ All files are saved to `/tmp/insta_recipe_<timestamp>/` by default:
 ### Example Output
 
 ```bash
-$ insta-recipe "https://www.instagram.com/p/ABC123/" -v
-Output directory: /tmp/insta_recipe_20240115_143022
-Extracting caption/description...
-Success: Caption saved to /tmp/insta_recipe_20240115_143022/captions.txt.
+$ social-content-extract "https://www.instagram.com/p/ABC123/" -v
+Output directory: /tmp/social_content_20240115_143022
+Extracting description text...
+Success: Description saved to /tmp/social_content_20240115_143022/description.txt.
 
 Downloading video...
-Success: Video downloaded to /tmp/insta_recipe_20240115_143022/video.mp4.
+Success: Video downloaded to /tmp/social_content_20240115_143022/video.mp4.
 
 Transcribing audio...
-Success: Audio transcription saved to /tmp/insta_recipe_20240115_143022/transcription.txt.
+Success: Audio transcription saved to /tmp/social_content_20240115_143022/transcription.txt.
 
 Running OCR on video frames...
-Success: OCR results saved to /tmp/insta_recipe_20240115_143022/ocr.txt.
+Success: OCR results saved to /tmp/social_content_20240115_143022/ocr.txt.
 
 Downloading thumbnail...
-Success: Thumbnail downloaded to /tmp/insta_recipe_20240115_143022/thumbnail.jpg.
+Success: Thumbnail downloaded to /tmp/social_content_20240115_143022/thumbnail.jpg.
 
 ==================================================
 Extraction Summary
 ==================================================
-Output directory: /tmp/insta_recipe_20240115_143022
-Caption extracted: yes
+Output directory: /tmp/social_content_20240115_143022
+Description extracted: yes
 Video downloaded: yes
 Audio transcribed: yes
 OCR completed: yes
 Thumbnail downloaded: yes
 
 Processed files:
-- /tmp/insta_recipe_20240115_143022/captions.txt
-- /tmp/insta_recipe_20240115_143022/video.mp4
-- /tmp/insta_recipe_20240115_143022/transcription.txt
-- /tmp/insta_recipe_20240115_143022/ocr.txt
-- /tmp/insta_recipe_20240115_143022/thumbnail.jpg
+- /tmp/social_content_20240115_143022/description.txt
+- /tmp/social_content_20240115_143022/video.mp4
+- /tmp/social_content_20240115_143022/transcription.txt
+- /tmp/social_content_20240115_143022/ocr.txt
+- /tmp/social_content_20240115_143022/thumbnail.jpg
 ==================================================
 ```
 
 ## Dependencies
 
-- **yt-dlp** - Video/caption extraction from Instagram
+- **yt-dlp** - Video and description extraction from supported platforms
 - **faster-whisper** - Audio transcription
 - **easyocr** - OCR on video frames
 - **opencv-python-headless** - Video frame processing
@@ -147,8 +147,8 @@ detect failures programmatically.
 ### Example Error Output
 
 ```text
-# captions.txt (on failure)
-No caption found in post metadata
+# description.txt (on failure)
+No description found in post metadata
 
 # transcription.txt (on failure)  
 No audio detected or no speech transcribed
@@ -162,18 +162,18 @@ No text found via OCR
 You can also use the extractor directly in Python:
 
 ```python
-from instagram_recipe_importer import InstagramExtractor
+from social_content_extractor import ContentExtractor
 
-extractor = InstagramExtractor("/tmp/my_output")
+extractor = ContentExtractor("/tmp/my_output")
 
-# Extract caption
-extractor.extract_caption("https://www.instagram.com/p/ABC123/")
+# Extract description text
+extractor.extract_description("https://www.instagram.com/p/ABC123/")
 
 # Download video and process
 video_path = extractor.download_video("https://www.instagram.com/p/ABC123/")
 if video_path:
     extractor.transcribe_audio(video_path)
-    extractor.extract_text_ocr(video_path)
+    extractor.extract_ocr_text(video_path)
 ```
 
 ## License

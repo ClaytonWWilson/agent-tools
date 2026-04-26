@@ -2,7 +2,7 @@ import sys
 import types
 from pathlib import Path
 
-from instagram_recipe_importer.extractor import RecipeExtractor
+from social_content_extractor.extractor import ContentExtractor
 
 
 def _completed(returncode=0, stdout="", stderr=""):
@@ -15,9 +15,9 @@ def _completed(returncode=0, stdout="", stderr=""):
 
 def test_app_cache_dir_honors_env(monkeypatch, tmp_path):
     cache_dir = tmp_path / "cache"
-    monkeypatch.setenv("INSTAGRAM_RECIPE_IMPORTER_CACHE_DIR", str(cache_dir))
+    monkeypatch.setenv("SOCIAL_CONTENT_EXTRACTOR_CACHE_DIR", str(cache_dir))
 
-    extractor = RecipeExtractor(str(tmp_path / "out"))
+    extractor = ContentExtractor(str(tmp_path / "out"))
 
     assert extractor._get_app_cache_dir() == cache_dir
     assert cache_dir.exists()
@@ -39,9 +39,9 @@ def test_transcribe_audio_passes_whisper_download_root(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "faster_whisper", fake_faster_whisper)
 
     cache_dir = tmp_path / "cache"
-    monkeypatch.setenv("INSTAGRAM_RECIPE_IMPORTER_CACHE_DIR", str(cache_dir))
+    monkeypatch.setenv("SOCIAL_CONTENT_EXTRACTOR_CACHE_DIR", str(cache_dir))
 
-    extractor = RecipeExtractor(str(tmp_path / "out"))
+    extractor = ContentExtractor(str(tmp_path / "out"))
     monkeypatch.setattr(extractor, "_get_whisper_device", lambda: ("cpu", "int8"))
 
     assert extractor.transcribe_audio("video.mp4") is True
@@ -66,7 +66,7 @@ def test_prepare_video_for_ocr_transcodes_av1(monkeypatch, tmp_path):
 
     monkeypatch.setattr("subprocess.run", fake_run)
 
-    extractor = RecipeExtractor(str(tmp_path))
+    extractor = ContentExtractor(str(tmp_path))
     ocr_path, cleanup_path = extractor._prepare_video_for_ocr("input.mp4")
 
     assert ocr_path != "input.mp4"
@@ -84,14 +84,14 @@ def test_prepare_video_for_ocr_keeps_non_av1(monkeypatch, tmp_path):
 
     monkeypatch.setattr("subprocess.run", fake_run)
 
-    extractor = RecipeExtractor(str(tmp_path))
+    extractor = ContentExtractor(str(tmp_path))
     ocr_path, cleanup_path = extractor._prepare_video_for_ocr("input.mp4")
 
     assert ocr_path == "input.mp4"
     assert cleanup_path is None
 
 
-def test_extract_text_ocr_transcode_failure_writes_error(monkeypatch, tmp_path):
+def test_extract_ocr_text_transcode_failure_writes_error(monkeypatch, tmp_path):
     fake_cv2 = types.ModuleType("cv2")
     fake_easyocr = types.ModuleType("easyocr")
     fake_easyocr.Reader = object
@@ -107,15 +107,15 @@ def test_extract_text_ocr_transcode_failure_writes_error(monkeypatch, tmp_path):
 
     monkeypatch.setattr("subprocess.run", fake_run)
 
-    extractor = RecipeExtractor(str(tmp_path))
+    extractor = ContentExtractor(str(tmp_path))
 
-    assert extractor.extract_text_ocr("input.mp4") is False
+    assert extractor.extract_ocr_text("input.mp4") is False
     assert "ffmpeg failed while transcoding AV1 video for OCR: no encoder" in (
         tmp_path / "ocr.txt"
     ).read_text()
 
 
-def test_extract_text_ocr_uses_readable_video_path(monkeypatch, tmp_path):
+def test_extract_ocr_text_uses_readable_video_path(monkeypatch, tmp_path):
     captured_paths = []
 
     class FakeVideoCapture:
@@ -160,8 +160,8 @@ def test_extract_text_ocr_uses_readable_video_path(monkeypatch, tmp_path):
 
     monkeypatch.setattr("subprocess.run", fake_run)
 
-    extractor = RecipeExtractor(str(tmp_path))
+    extractor = ContentExtractor(str(tmp_path))
 
-    assert extractor.extract_text_ocr("input.mp4") is True
+    assert extractor.extract_ocr_text("input.mp4") is True
     assert captured_paths == ["input.mp4"]
     assert (tmp_path / "ocr.txt").read_text() == "TEXT FOUND:\nSALT"

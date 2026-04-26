@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "instagram-recipe-importer"
-version = "0.2.0"
-description = "Extract recipe information from Instagram and YouTube posts (captions, audio transcription, OCR)"
+name = "social-content-extractor"
+version = "0.3.0"
+description = "Extract content information from Instagram and YouTube posts (descriptions, audio transcription, OCR)"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
@@ -38,7 +38,7 @@ dev = [
 ]
 
 [project.scripts]
-insta-recipe = "instagram_recipe_importer.cli:main"
+social-content-extract = "social_content_extractor.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

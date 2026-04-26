@@ -1,7 +1,7 @@
 """
-Instagram Recipe Extractor
+Social Content Extractor
 
-Core extraction logic for captions, audio transcription, and OCR.
+Core extraction logic for descriptions, audio transcription, and OCR.
 """
 
 import glob
@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 
-class RecipeExtractor:
-    """Extract recipe information from Instagram and YouTube posts."""
+class ContentExtractor:
+    """Extract content information from Instagram and YouTube posts."""
     
     def __init__(self, output_dir: str):
         """Initialize extractor with output directory.
@@ -50,14 +50,12 @@ class RecipeExtractor:
 
     def _get_app_cache_dir(self) -> Path:
         """Return the cache directory owned by this tool."""
-        if env_cache_dir := os.environ.get("INSTAGRAM_RECIPE_IMPORTER_CACHE_DIR"):
+        if env_cache_dir := os.environ.get("SOCIAL_CONTENT_EXTRACTOR_CACHE_DIR"):
             cache_dir = Path(env_cache_dir).expanduser()
         elif xdg_cache_home := os.environ.get("XDG_CACHE_HOME"):
-            cache_dir = (
-                Path(xdg_cache_home).expanduser() / "instagram-recipe-importer"
-            )
+            cache_dir = Path(xdg_cache_home).expanduser() / "social-content-extractor"
         else:
-            cache_dir = Path.home() / ".cache" / "instagram-recipe-importer"
+            cache_dir = Path.home() / ".cache" / "social-content-extractor"
 
         try:
             cache_dir.mkdir(parents=True, exist_ok=True)
@@ -100,8 +98,8 @@ class RecipeExtractor:
                 f"Must be from Instagram or YouTube."
             )
     
-    def extract_caption(self, url: str) -> bool:
-        """Extract caption/description from post.
+    def extract_description(self, url: str) -> bool:
+        """Extract description text from a post.
         
         Args:
             url: Post URL (Instagram or YouTube)
@@ -130,14 +128,14 @@ class RecipeExtractor:
                 )
                 error_msg = f"yt-dlp failed: {error_detail}"
                 self._record_error(error_msg)
-                self._write_to_file("captions.txt", error_msg)
+                self._write_to_file("description.txt", error_msg)
                 return False
             
             data = json.loads(result.stdout)
             
             # Platform-specific extraction
             if source == "youtube":
-                # YouTube: title + description (recipe often in description)
+                # YouTube: title plus description text.
                 title = data.get("title", "")
                 description = data.get("description", "")
                 
@@ -153,46 +151,46 @@ class RecipeExtractor:
                         description = description[:max_length] + "\n... [truncated]"
                     output_lines.append(description)
                 
-                caption_text = "\n".join(output_lines).strip()
+                description_text = "\n".join(output_lines).strip()
             else:  # instagram
                 # Instagram: caption/description fields
-                caption = (
+                description = (
                     data.get("description", "") or
                     data.get("full_description", "") or
                     data.get("title", "") or
                     ""
                 )
                 
-                if not caption:
-                    error_msg = "No caption found in post metadata"
+                if not description:
+                    error_msg = "No description found in post metadata"
                     self._record_error(error_msg)
-                    self._write_to_file("captions.txt", error_msg)
+                    self._write_to_file("description.txt", error_msg)
                     return False
                 
-                # Truncate very long captions
+                # Truncate very long descriptions
                 max_length = 10000
-                if len(caption) > max_length:
-                    caption = caption[:max_length] + "\n... [truncated]"
+                if len(description) > max_length:
+                    description = description[:max_length] + "\n... [truncated]"
                 
-                caption_text = caption
+                description_text = description
             
-            self._write_to_file("captions.txt", caption_text)
+            self._write_to_file("description.txt", description_text)
             return True
             
         except json.JSONDecodeError as e:
             error_msg = f"Failed to parse yt-dlp output: {e}"
             self._record_error(error_msg)
-            self._write_to_file("captions.txt", error_msg)
+            self._write_to_file("description.txt", error_msg)
             return False
         except ValueError as e:
             error_msg = str(e)
             self._record_error(error_msg)
-            self._write_to_file("captions.txt", error_msg)
+            self._write_to_file("description.txt", error_msg)
             return False
         except Exception as e:
-            error_msg = f"Unexpected error extracting caption: {e}"
+            error_msg = f"Unexpected error extracting description: {e}"
             self._record_error(error_msg)
-            self._write_to_file("captions.txt", error_msg)
+            self._write_to_file("description.txt", error_msg)
             return False
     
     def download_video(self, url: str) -> Optional[str]:
@@ -322,7 +320,7 @@ class RecipeExtractor:
             self._write_to_file("transcription.txt", error_msg)
             return False
     
-    def extract_text_ocr(self, video_path: str) -> bool:
+    def extract_ocr_text(self, video_path: str) -> bool:
         """Extract text from video frames using OCR.
         
         Args:

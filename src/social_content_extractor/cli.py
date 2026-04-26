@@ -1,7 +1,7 @@
 """
-Instagram Recipe Importer - CLI Tool
+Social Content Extractor - CLI Tool
 
-Extract recipe information from Instagram and YouTube posts.
+Extract content information from Instagram and YouTube posts.
 """
 
 from pathlib import Path
@@ -9,7 +9,7 @@ from datetime import datetime
 
 import click
 
-from .extractor import RecipeExtractor
+from .extractor import ContentExtractor
 
 
 def echo_step(message: str) -> None:
@@ -28,11 +28,11 @@ def echo_created_file(path: str) -> None:
     click.echo(f"Created: {path}", err=True)
 
 
-def echo_extractor_error(extractor: RecipeExtractor, fallback: str) -> None:
+def echo_extractor_error(extractor: ContentExtractor, fallback: str) -> None:
     echo_error(extractor.last_error or fallback)
 
 
-def echo_processed_files(extractor: RecipeExtractor) -> None:
+def echo_processed_files(extractor: ContentExtractor) -> None:
     if not extractor.created_files:
         return
 
@@ -68,14 +68,14 @@ def validate_url(ctx, param, value):
     default=None,
     help=(
         "Output directory for extracted files. "
-        "Defaults to /tmp/insta_recipe_<timestamp>"
+        "Defaults to /tmp/social_content_<timestamp>"
     )
 )
 @click.option(
-    "--caption-only",
+    "--description-only",
     is_flag=True,
     default=False,
-    help="Only extract caption/description, skip video download and processing"
+    help="Only extract description text, skip video download and processing"
 )
 @click.option(
     "--no-thumbnail",
@@ -89,20 +89,20 @@ def validate_url(ctx, param, value):
     default=False,
     help="Enable verbose output"
 )
-def main(url, output_dir, caption_only, no_thumbnail, verbose):
-    """Extract recipe information from an Instagram or YouTube post.
+def main(url, output_dir, description_only, no_thumbnail, verbose):
+    """Extract content information from an Instagram or YouTube post.
     
-    URL should be a post/video URL containing a recipe.
+    URL should be an Instagram or YouTube post/video URL.
     
     Examples:
-        insta-recipe https://www.instagram.com/p/ABC123/
-        insta-recipe https://www.youtube.com/watch?v=ABC123
-        insta-recipe https://youtu.be/ABC123
+        social-content-extract https://www.instagram.com/p/ABC123/
+        social-content-extract https://www.youtube.com/watch?v=ABC123
+        social-content-extract https://youtu.be/ABC123
     """
     # Determine output directory
     if output_dir is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = f"/tmp/insta_recipe_{timestamp}"
+        output_dir = f"/tmp/social_content_{timestamp}"
     
     output_path = Path(output_dir)
     
@@ -110,29 +110,29 @@ def main(url, output_dir, caption_only, no_thumbnail, verbose):
         click.echo(f"Output directory: {output_path}", err=True)
     
     # Create extractor
-    extractor = RecipeExtractor(str(output_path))
+    extractor = ContentExtractor(str(output_path))
     
     results = {
-        "caption": False,
+        "description": False,
         "video_download": None,
         "transcription": False,
         "ocr": False,
         "thumbnail": None,
     }
     
-    # Step 1: Extract caption
-    echo_step("Extracting caption/description")
-    results["caption"] = extractor.extract_caption(url)
-    caption_path = extractor.get_output_path("captions.txt")
-    if results["caption"]:
-        echo_success(f"Caption saved to {caption_path}.")
+    # Step 1: Extract description
+    echo_step("Extracting description text")
+    results["description"] = extractor.extract_description(url)
+    description_path = extractor.get_output_path("description.txt")
+    if results["description"]:
+        echo_success(f"Description saved to {description_path}.")
     else:
-        echo_extractor_error(extractor, "Failed to extract caption.")
-        if Path(caption_path).exists():
-            echo_created_file(caption_path)
+        echo_extractor_error(extractor, "Failed to extract description.")
+        if Path(description_path).exists():
+            echo_created_file(description_path)
     
-    # If caption-only mode, we're done
-    if caption_only:
+    # If description-only mode, we're done
+    if description_only:
         click.echo("", err=True)
         click.echo(f"Output saved to: {output_path}", err=True)
         echo_processed_files(extractor)
@@ -168,7 +168,7 @@ def main(url, output_dir, caption_only, no_thumbnail, verbose):
     if video_path:
         click.echo("", err=True)
         echo_step("Running OCR on video frames")
-        results["ocr"] = extractor.extract_text_ocr(video_path)
+        results["ocr"] = extractor.extract_ocr_text(video_path)
         ocr_path = extractor.get_output_path("ocr.txt")
         if results["ocr"]:
             echo_success(f"OCR results saved to {ocr_path}.")
@@ -193,8 +193,11 @@ def main(url, output_dir, caption_only, no_thumbnail, verbose):
     click.echo("Extraction Summary", err=True)
     click.echo("="*50, err=True)
     click.echo(f"Output directory: {output_path}", err=True)
-    click.echo(f"Caption extracted: {'yes' if results['caption'] else 'no'}", err=True)
-    if not caption_only:
+    click.echo(
+        f"Description extracted: {'yes' if results['description'] else 'no'}",
+        err=True
+    )
+    if not description_only:
         click.echo(
             f"Video downloaded: {'yes' if results['video_download'] else 'no'}",
             err=True
